@@ -2845,6 +2845,16 @@ void init_ib_ctx_array()
     }
 }
 
+void put_ib_ctx(int srv_id, IB_Context * ib_ctx)
+{
+	assert(ib_ctx_array[srv_id] == NULL);
+	ib_ctx_array[srv_id] = ib_ctx;
+}
+
+IB_Context * get_ib_ctx(int srv_id)
+{
+	return ib_ctx_array[srv_id];
+}
 
 static void handle_create_ib_conn(protocol_binary_request_header *req, conn* c)
 {
@@ -2853,12 +2863,28 @@ static void handle_create_ib_conn(protocol_binary_request_header *req, conn* c)
     buf_offset += sizeof(protocol_binary_request_header);
 
     int requesting_srv_id;
-    memcpy(&requesting_srv_id, req->request.para1_len, (char*)req + buf_offset);
+    memcpy(&requesting_srv_id, (char*)req + buf_offset, req->request.para1_len);
     buf_offset += req->request.para1_len;
+	
 
-    IB_Context;
-    memcpy(&open_flags, (char*)req + buf_offset, req->request.para2_len);
+	assert(get_ib_ctx(requesting_srv_id) == NULL);
+
+	// TODO: register right memory
+	IB_Context *loc_ib_ctx = create_ib_qp(tmpbuf, 1024);
+
+	IB_Connection * recv_ib_conn = &loc_ib_ctx->rmt_ib_conn;
+    memcpy(&recv_ib_conn, (char*)req + buf_offset, req->request.para2_len);
     buf_offset += req->request.para2_len;
+	
+	int write_and_free_len = sizeof(IB_Connection);
+	c->write_and_free = calloc(1, write_and_free_len);
+	memcpy(c->write_and_free, &loc_ib_ctx->loc_ib_conn, sizeof(IB_Connection));
+	write_bin_response(c, c->write_and_free, 0, 1, write_and_free_len,
+								   0, 1, 1,
+								   write_and_free_len, write_and_free_len,
+								   sizeof(IB_Connection), 0, 0, 0, 0, 0, 0);
+	
+	put_ib_ctx(requesting_srv_id, loc_ib_ctx);
 }
 
 
