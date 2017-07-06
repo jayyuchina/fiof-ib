@@ -27,10 +27,10 @@
 
 // JAY
 #include "hashtable.h"
-#include "../include/jay_global.h"
-#include "../include/protocol_binary.h"
-#include "../include/glex.h"
-#include "confread.h"
+#include "../afac_common/jay_global.h"
+#include "../afac_common/protocol_binary.h"
+#include "../afac_common/glex.h"
+#include "../afac_common/configure.h"
 #include "shf.private.h"
 #include "shf.h"
 #include "tap.h"
@@ -5396,8 +5396,7 @@ static void cache_device_init()
     // tmpfs file device path
     if(config_param.cache_device_tmpfs == 1)
     {
-    	char* tmpfs_path_prefix = config_param.tmpfs_path_prefix;
-    	sprintf(DEVICE_PATH, "%s%s%s", tmpfs_path_prefix, my_server_name, config_param.tmpfs_path_suffix);
+		strcpy(DEVICE_PATH, config_param.tmpfs_path);
     }
 	else
 	{
@@ -5437,18 +5436,6 @@ static void cache_device_init()
     if(DEBUG)
         fprintf(stderr, "DEVICE_SIZE: %d GB\n", device_size / 1024 / 1024 / 1024);
 
-	// FOR SIMULATE SSD
-	
-	if(config_param.simulate_ssd == 0) return;
-	
-	DEVICE_SEM_ID = semget((key_t)SIMULATE_SSD_SEM_KEY, 1, 0666 | IPC_CREAT); 
-	union semun sem_union;    
-    sem_union.val = 1;  
-    if(semctl(DEVICE_SEM_ID, 0, SETVAL, sem_union) == -1)  
-    {
-		fprintf(stderr, "Error: failed to init device semaphore\n");
-		exit(1);
-    }
 	
 }
 
@@ -5457,12 +5444,6 @@ static void cache_device_finalize()
     free(device_space);
     close(device_fd);
 	
-	// FOR SIMULATE SSD
-	/*
-	union semun sem_union;  
-    if(semctl(DEVICE_SEM_ID, 0, IPC_RMID, sem_union) == -1)  
-        fprintf(stderr, "Error: Failed to delete semaphore\n");
-	*/
 }
 
 static void device_semaphore_p()  
@@ -5490,28 +5471,6 @@ static void device_semaphore_v()
 		exit(1);
     }  
 }  
-
-/*
-struct timeval local_delay_start, local_delay_end;
-static void simulate_ssd_start()
-{
-	if(config_param.cache_device_tmpfs == 0 || config_param.simulate_ssd == 0) return;
-	
-	device_semaphore_p();
-	gettimeofday(&local_delay_start, NULL);
-}
-
-static void simulate_ssd_end()
-{
-	if(config_param.cache_device_tmpfs == 0 || config_param.simulate_ssd == 0) return;
-	
-	gettimeofday(&local_delay_end, NULL);
-	usleep(config_param.latency_delay_ratio * (1000000 * ( local_delay_end.tv_sec - local_delay_start.tv_sec ) + local_delay_end.tv_usec - local_delay_start.tv_usec));
-	device_semaphore_v();
-}
-*/
-
-
 
 static void keep_tmpfs_busy_by_writing(char* buf, unsigned long offset, int size, double num_times)
 {		
@@ -6701,151 +6660,6 @@ static void del_entry_metadata_cache(char * path, int file_block_id)
 
 
 
-/********************** Config File Start *******************************/
-
-
-
-void digest_config_pair(struct confread_pair *pair)
-{
-    char * key = pair->key;
-    char * value = pair->value;
-
-    
-	if(strcmp(key, "server debug level") == 0)
-	{
-		config_param.server_debug_level = atoi(value);
-	}
-	else if(strcmp(key, "client debug level") == 0)
-	{
-		config_param.client_debug_level = atoi(value);
-	}
-    else if(strcmp(key, "ion_cn_ration") == 0)
-    {
-        config_param.ion_cn_ratio = atoi(value) + 1;	// need +1 to create the right interval
-    }
-    else if(strcmp(key, "ion_with_hash") == 0)
-    {
-		if(strcmp(value, "on") == 0)
-        	config_param.ion_with_hash = 1;	
-		else
-			config_param.ion_with_hash = 0;
-    }
-    else if(strcmp(key, "metadata management") == 0)
-    {
-        if(strcmp(value, "hash") == 0)
-            config_param.metadata_hash = 1;
-        else
-            config_param.metadata_hash = 0;
-    }
-	else if(strcmp(key, "metadata caching") == 0)
-    {
-        if(strcmp(value, "on") == 0)
-            config_param.metadata_caching = 1;
-        else
-            config_param.metadata_caching = 0;
-    }
-	else if(strcmp(key, "cache device") == 0)
-    {
-        if(strcmp(value, "tmpfs") == 0)
-            config_param.cache_device_tmpfs = 1;
-        else
-            config_param.cache_device_tmpfs = 0;
-    }
-    else if(strcmp(key, "tmpfs path prefix") == 0)
-    {
-		strcpy(config_param.tmpfs_path_prefix, value);
-    }
-    else if(strcmp(key, "tmpfs path suffix") == 0)
-    {
-		strcpy(config_param.tmpfs_path_suffix, value);
-    }
-    else if(strcmp(key, "ssd path") == 0)
-    {
-		strcpy(config_param.ssd_path, value);
-    }
-    else if(strcmp(key, "simulate ssd with tmpfs") == 0)
-    {
-        if(strcmp(value, "on") == 0)
-            config_param.simulate_ssd = 1;
-        else
-            config_param.simulate_ssd = 0;
-    }
-    else if(strcmp(key, "simulate read latency") == 0)
-    {
-        config_param.simulate_read_latency = atof(value);
-    }
-    else if(strcmp(key, "simulate write latency") == 0)
-    {
-        config_param.simulate_write_latency = atof(value);
-    }
-    else if(strcmp(key, "LASIOD") == 0)
-    {
-        if(strcmp(value, "on") == 0)
-            config_param.LASIOD = 1;
-        else
-            config_param.LASIOD = 0;
-    }
-    else if(strcmp(key, "LASIOD_SCATTER_NUM") == 0)
-    {
-        config_param.LASIOD_SCATTER_NUM = atoi(value);
-    }
-    else if(strcmp(key, "LASIOD_SMALL_IO_SIZE_KB") == 0)
-    {
-        config_param.LASIOD_SMALL_IO_SIZE = atoi(value) * 1024;
-    }
-    else if(strcmp(key, "LASIOD_LARGE_IO_SIZE_MB") == 0)
-    {
-        config_param.LASIOD_LARGE_IO_SIZE = atoi(value) * 1024 * 1024;
-    }
-    else if(strcmp(key, "SRV_RDMA_EP_NUM") == 0)
-    {
-        config_param.SRV_RDMA_EP_NUM = atoi(value);
-    }
-    else if(strcmp(key, "SRV_MEM_BLK_PER_EP") == 0)
-    {
-        config_param.SRV_MEM_BLK_PER_EP = atoi(value);
-    }
-    else
-    {
-        fprintf(stderr, "Config File Error: Unknown Key-Value Pair <%s, %s>!\n", key, value);
-        exit(1);
-    }
-}
-
-
-void read_config_file()
-{
-    char *path = CONFIG_PARAM_PATH;
-
-    struct confread_file *configFile;
-    struct confread_section *thisSect = NULL;
-    struct confread_pair *thisPair = NULL;
-
-    if (!(configFile = confread_open(path)))
-    {
-        fprintf(stderr, "Config open failed\n");
-        exit(1);
-    }
-
-    thisSect = configFile->sections;
-    while(thisSect)
-    {
-        thisPair = thisSect->pairs;
-        while (thisPair)
-        {
-            //viprintf("%s\t:\t%s\n", thisPair->key, thisPair->value);
-            digest_config_pair(thisPair);
-            thisPair = thisPair->next;
-        }
-        thisSect = thisSect->next;
-    }
-
-    confread_close(&configFile);
-
-}
-
-
-/********************** Config File End *******************************/
 
 
 
@@ -6859,7 +6673,7 @@ void main_finalize()
 int main(int argc, char **argv)
 {
     // JAY CODE
-    read_config_file();
+    read_config_file(config_param);
 	DEBUG = config_param.server_debug_level;
 	// JAY CODE END
 	
@@ -6882,7 +6696,6 @@ int main(int argc, char **argv)
     //printf("file mapping init finished!\n");
 
     // JAY CODE
-    //read_config_file();
 
     mfd_array_init();
     open_mds_file_table_init();

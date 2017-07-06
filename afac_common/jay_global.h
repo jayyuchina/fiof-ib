@@ -32,10 +32,6 @@
 // RDMA PARAMS
 #define SIZE_RDMA_MEM_BLK G_BLOCK_SIZE_IN_BYTES
 
-
-// SIMULATE SSD
-#define SIMULATE_SSD_SEM_KEY 1314
-
 typedef struct
 {
 	int requesting_srv_id;
@@ -96,36 +92,6 @@ typedef struct
 	char name[MAX_SERVER_NAME];
 } server_name;
 
-
-typedef struct
-{
-	int server_debug_level;
-	int client_debug_level;
-	
-	int metadata_hash;
-	
-	int metadata_caching;
-
-	int cache_device_tmpfs;
-	char tmpfs_path_prefix[PATH_MAX];
-	char tmpfs_path_suffix[PATH_MAX];
-	char ssd_path[PATH_MAX];
-
-	// SSD Simulator
-	int simulate_ssd;
-	double simulate_read_latency;
-	double simulate_write_latency;
-
-	// LASIOD
-	int LASIOD;
-	int LASIOD_SCATTER_NUM;
-	unsigned long LASIOD_SMALL_IO_SIZE;
-	unsigned long LASIOD_LARGE_IO_SIZE;
-
-	// RDMA
-	int SRV_RDMA_EP_NUM;
-	int SRV_MEM_BLK_PER_EP;
-} Config_Param;
 
 typedef struct
 {
