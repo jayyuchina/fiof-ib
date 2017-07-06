@@ -10,6 +10,8 @@ typedef struct
 {
 	int server_debug_level;
 	int client_debug_level;
+
+	int ion_modulus;
 	
 	int metadata_hash;
 	

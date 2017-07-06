@@ -15,9 +15,11 @@ void digest_config_pair(Config_Param &config_param, struct confread_pair *pair)
 	{
 		config_param.client_debug_level = atoi(value);
 	}
-    else if(strcmp(key, "ion_cn_ration") == 0)
+    else if(strcmp(key, "ion_modulus") == 0)
     {
-        config_param.ion_cn_ratio = atoi(value) + 1;	// need +1 to create the right interval
+		// srv_id % ion_modulus == 0 means its an ION
+		// srv_id / ion_moudulus  * ion_moudulus is the ION of the srv
+        config_param.ion_modulus = atoi(value);	
     }
     else if(strcmp(key, "ion_with_hash") == 0)
     {

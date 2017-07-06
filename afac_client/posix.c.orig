@@ -1850,32 +1850,27 @@ static void establish_ib_connection_with_all_ion()
     {
         if(!srv_is_ion(srv_id)) continue;
 
-        int create_ib_ret = cli_must_read_command(G_SERVER_CONNS[srv_id].conn);
-        if(create_ib_ret != 0)
-        {
-            fprintf(stderr, "cli_must_read_command failed in establish_ib_connection_with_all_ion()\n");
-            return 0;
-        }
+		epoll_read_ret = cli_try_read_command(G_SERVER_CONNS[cur_ost].conn);
+                if(epoll_read_ret != 0)
+                {
+                    fprintf(stderr, "cli_try_read_command failed in epoll_wait\n");
+                    return 0;
+                }
+                if(CLIENT_DEBUG_LEVEL >= 2) fprintf(stderr, "conn read %d bytes\n", G_SERVER_CONNS[cur_ost].conn->rbytes);
 
-		// the response is the IB_Connection struct
-		memset(&G_SERVER_CONNS[srv_id].ib_ctx->rmt_ib_conn, 0, sizeof(G_SERVER_CONNS[srv_id].ib_ctx->rmt_ib_conn));
-		assert(G_SERVER_CONNS[srv_id].conn->rbytes == sizeof(G_SERVER_CONNS[srv_id].ib_ctx->rmt_ib_conn));
-        if(G_SERVER_CONNS[srv_id].conn->frag_num == 1)
-        {
-            memcpy(&G_SERVER_CONNS[srv_id].ib_ctx->rmt_ib_conn, G_SERVER_CONNS[srv_id].conn->rbuf, G_SERVER_CONNS[srv_id].conn->rbytes);
-        }
-        else if(G_SERVER_CONNS[srv_id].conn->frag_num > 1)
-        {
-            memcpy(&G_SERVER_CONNS[srv_id].ib_ctx->rmt_ib_conn, G_SERVER_CONNS[srv_id].conn->assemb_buf, G_SERVER_CONNS[srv_id].conn->rbytes);
-        }
-
-		// shake hands
-		ib_change_qp_state_rts(G_SERVER_CONNS[srv_id].ib_ctx->qp, G_SERVER_CONNS[srv_id].ib_ctx->rmt_ib_conn);
-
-		if(CLIENT_DEBUG_LEVEL >= 2) fprintf(stderr, "Established IB connection with ion[%d]\n", srv_id);
+                char tmp_rbuf[G_SERVER_CONNS[cur_ost].conn->rbytes];
+                if(G_SERVER_CONNS[cur_ost].conn->frag_num == 1)
+                {
+                    memcpy(tmp_rbuf, G_SERVER_CONNS[cur_ost].conn->rbuf, G_SERVER_CONNS[cur_ost].conn->rbytes);
+                }
+                else if(G_SERVER_CONNS[cur_ost].conn->frag_num > 1)
+                {
+                    memcpy(tmp_rbuf, G_SERVER_CONNS[cur_ost].conn->assemb_buf, G_SERVER_CONNS[cur_ost].conn->rbytes);
+                }
     }
 
-
+	
+    // shake hands
 
 }
 

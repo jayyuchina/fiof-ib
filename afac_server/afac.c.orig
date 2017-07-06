@@ -139,7 +139,7 @@ static uint64_t write_ost_data(Ost_File *file, char* data_buf, uint64_t data_buf
 static void read_ost_block(Ost_File *file, char* buf, block_data_req *blk_req);
 static void write_ost_block(Ost_File *file, char* buf, block_data_req *blk_req);
 static void prepare_for_first_cached_in_data(Ost_File *ost_file, int *metadata_array, int num_block, int start_block_id,
-        long offset, size_t size, int is_read);
+															long offset, size_t size, int is_read);
 
 // RDMA
 
@@ -2836,13 +2836,15 @@ static void pull_rdma_data(rdma_mem_block *mem_blk, block_data_req *blk_req, rdm
 // IB
 
 static IB_Context** ib_ctx_array;
+
 void init_ib_ctx_array()
 {
-    if ((ib_ctx_array = calloc(G_SERVER_NUM, sizeof(IB_Context*))) == NULL)
-    {
-        fprintf(stderr, "Failed to allocate ib_ctx_array structures\n");
-        exit(1);
-    }
+	if ((ib_ctx_array = calloc(G_SERVER_NUM, sizeof(IB_Context*))) == NULL)
+		{
+			fprintf(stderr, "Failed to allocate ib_ctx_array structures\n");
+			exit(1);
+		}
+
 }
 
 
@@ -2895,26 +2897,26 @@ static void handle_open(protocol_binary_request_header *req, conn* c)
     memcpy(c->write_and_free, &cfd, sizeof(int));
     write_bin_response(c, c->write_and_free, 0, 1, sizeof(cfd), 0, 1, 1, sizeof(cfd), sizeof(cfd), sizeof(cfd), 0, 0, 0, 0, 0, 0);
 
-    Ost_File *new_ost_file;
+	Ost_File *new_ost_file;
     // see if the file is opened in this OST
     //pthread_mutex_lock(&ost_file_table_mutex);
     if(check_if_ost_file_exists(cfd))	// exists
     {
-        //pthread_mutex_unlock(&ost_file_table_mutex);
+    	//pthread_mutex_unlock(&ost_file_table_mutex);
     }
     else								// not exists
     {
-        new_ost_file = calloc(1, sizeof(Ost_File));
-        init_ost_file(new_ost_file);
-        memcpy(new_ost_file->path, path, PATH_MAX);
-        if(req->request.para_num == 2)
-            new_ost_file->real_fd = open(path, open_flags);
-        else if(req->request.para_num == 3)
-            new_ost_file->real_fd = open(path, open_flags, open_mode);
-        assert(new_ost_file->real_fd > 0);
-        new_ost_file->size = lseek(new_ost_file->real_fd, 0, SEEK_END);
-        insert_ost_file(cfd, new_ost_file);
-        //pthread_mutex_unlock(&ost_file_table_mutex);
+            new_ost_file = calloc(1, sizeof(Ost_File));
+            init_ost_file(new_ost_file);
+            memcpy(new_ost_file->path, path, PATH_MAX);
+            if(req->request.para_num == 2)
+                new_ost_file->real_fd = open(path, open_flags);
+            else if(req->request.para_num == 3)
+                new_ost_file->real_fd = open(path, open_flags, open_mode);
+            assert(new_ost_file->real_fd > 0);
+			new_ost_file->size = lseek(new_ost_file->real_fd, 0, SEEK_END);
+            insert_ost_file(cfd, new_ost_file);
+    	//pthread_mutex_unlock(&ost_file_table_mutex);
     }
 
 
@@ -3002,7 +3004,7 @@ static void handle_lseek(protocol_binary_request_header *req, conn* c)
             else if(open_arg->arg_num == 3)
                 new_ost_file->real_fd = open(open_arg->path, open_arg->flags, open_arg->modes);
             assert(new_ost_file->real_fd > 0);
-            new_ost_file->size = lseek(new_ost_file->real_fd, 0, SEEK_END);
+			new_ost_file->size = lseek(new_ost_file->real_fd, 0, SEEK_END);
             insert_ost_file(cfd, new_ost_file);
 
             ost_file = new_ost_file;
@@ -3097,7 +3099,7 @@ static void handle_query_metadata(protocol_binary_request_header *req, conn* c)
     //gettimeofday(&start_time, NULL);
     query_block_metadata(mfd, start_block_index, num_block_index, c->write_and_free, query_server_id, successive_info, size);
     //gettimeofday(&end_time, NULL);
-
+    
     memcpy((char *)c->write_and_free + bytes_block_metadata, &bytes_block_metadata, sizeof(bytes_block_metadata));
 
     write_bin_response(c, c->write_and_free, 0, 2, bytes_block_metadata + sizeof(bytes_block_metadata), 0, 1, 1,
@@ -3107,7 +3109,7 @@ static void handle_query_metadata(protocol_binary_request_header *req, conn* c)
 
     /*for trace: file_name, client name exc_time*/
     //c->request_trace.exc_time = (end_time.tv_sec - start_time.tv_sec) * 1000000 +
-    //end_time.tv_usec - start_time.tv_usec;
+                                //end_time.tv_usec - start_time.tv_usec;
 
 }
 
@@ -3116,7 +3118,7 @@ static void handle_ost_prepare_data(protocol_binary_request_header *req, conn* c
 {
     // 4 params: mfd, offset, size, MY_SERVER_ID
     assert(req->request.para_num == 5 || req->request.para_num == 6);
-
+	
     int buf_offset = 0;
     buf_offset += sizeof(protocol_binary_request_header);
 
@@ -3146,7 +3148,7 @@ static void handle_ost_prepare_data(protocol_binary_request_header *req, conn* c
     assert(req->request.para5_len == sizeof(SuccessiveInfo));
     buf_offset += req->request.para5_len;
 
-    Ost_File *ost_file = NULL;
+	Ost_File *ost_file = NULL;
     // see if the file is opened in this OST
     if(check_if_ost_file_exists(cfd))	// exists
     {
@@ -3169,7 +3171,7 @@ static void handle_ost_prepare_data(protocol_binary_request_header *req, conn* c
             else if(open_arg->arg_num == 3)
                 new_ost_file->real_fd = open(open_arg->path, open_arg->flags, open_arg->modes);
             assert(new_ost_file->real_fd > 0);
-            new_ost_file->size = lseek(new_ost_file->real_fd, 0, SEEK_END);
+			new_ost_file->size = lseek(new_ost_file->real_fd, 0, SEEK_END);
             insert_ost_file(cfd, new_ost_file);
 
             ost_file = new_ost_file;
@@ -3181,29 +3183,29 @@ static void handle_ost_prepare_data(protocol_binary_request_header *req, conn* c
             if(SERVER_DEBUG_LEVEL)
                 fprintf(stderr, "PREP OST:\t  NEED RETRY WITH PATH\n");
 
-            int result = 0;
-            c->write_and_free = malloc(sizeof(int));
-            memcpy(c->write_and_free, &result, sizeof(int));
-            write_bin_response(c, c->write_and_free, 0, 1, sizeof(result), 0, 1, 1, sizeof(result), sizeof(result), sizeof(result), 0, 0, 0, 0, 0, 0);
+			int result = 0;
+			c->write_and_free = malloc(sizeof(int));
+			memcpy(c->write_and_free, &result, sizeof(int));
+			write_bin_response(c, c->write_and_free, 0, 1, sizeof(result), 0, 1, 1, sizeof(result), sizeof(result), sizeof(result), 0, 0, 0, 0, 0, 0);
 
             // this will go to break;
         }
     }
 
-    if(ost_file != NULL)
+	if(ost_file != NULL)
     {
-        if(SERVER_DEBUG_LEVEL)  fprintf(stderr, "PREP OST\n");
+    	if(SERVER_DEBUG_LEVEL)  fprintf(stderr, "PREP OST\n");
+		
+		prepare_for_first_cached_in_data(ost_file, metadata_array, num_block_index, start_block_index, offset, size, successive_info->is_read);
 
-        prepare_for_first_cached_in_data(ost_file, metadata_array, num_block_index, start_block_index, offset, size, successive_info->is_read);
-
-        int result = 1;
-        c->write_and_free = malloc(sizeof(int));
-        memcpy(c->write_and_free, &result, sizeof(int));
-        write_bin_response(c, c->write_and_free, 0, 1, sizeof(result), 0, 1, 1, sizeof(result), sizeof(result), sizeof(result), 0, 0, 0, 0, 0, 0);
-
-    }
-
-
+	   	int result = 1;
+		c->write_and_free = malloc(sizeof(int));
+		memcpy(c->write_and_free, &result, sizeof(int));
+		write_bin_response(c, c->write_and_free, 0, 1, sizeof(result), 0, 1, 1, sizeof(result), sizeof(result), sizeof(result), 0, 0, 0, 0, 0, 0);
+		   
+    } 
+    
+   
 }
 
 
@@ -3245,7 +3247,7 @@ static void handle_rdma_read_ost(protocol_binary_request_header *req, conn* c)
             else if(open_arg->arg_num == 3)
                 new_ost_file->real_fd = open(open_arg->path, open_arg->flags, open_arg->modes);
             assert(new_ost_file->real_fd > 0);
-            new_ost_file->size = lseek(new_ost_file->real_fd, 0, SEEK_END);
+			new_ost_file->size = lseek(new_ost_file->real_fd, 0, SEEK_END);
             insert_ost_file(blk_req->cfd, new_ost_file);
 
             ost_file = new_ost_file;
@@ -3376,7 +3378,7 @@ static void handle_rdma_write_ost(protocol_binary_request_header *req, conn* c)
             else if(open_arg->arg_num == 3)
                 new_ost_file->real_fd = open(open_arg->path, open_arg->flags, open_arg->modes);
             assert(new_ost_file->real_fd > 0);
-            new_ost_file->size = lseek(new_ost_file->real_fd, 0, SEEK_END);
+			new_ost_file->size = lseek(new_ost_file->real_fd, 0, SEEK_END);
             insert_ost_file(blk_req->cfd, new_ost_file);
 
             if(SERVER_DEBUG_LEVEL) fprintf(stderr, "open file to write: %s\n", open_arg->path);
@@ -3439,9 +3441,9 @@ static void handle_rdma_write_ost(protocol_binary_request_header *req, conn* c)
             //if(SERVER_DEBUG_LEVEL) fprintf(stderr, "~~~ io time: %lu\n", 1000000 * ( io_end_time.tv_sec - io_start_time.tv_sec ) + io_end_time.tv_usec - io_start_time.tv_usec);
 
             release_mem_block(rdma_mem_blk->id);
-
-            update_ost_file_size(ost_file, blk_req->file_block_id * G_BLOCK_SIZE_IN_BYTES + blk_req->start_offset,
-                                 blk_req->end_offset - blk_req->start_offset + 1);
+			
+			update_ost_file_size(ost_file, blk_req->file_block_id * G_BLOCK_SIZE_IN_BYTES + blk_req->start_offset,
+									blk_req->end_offset - blk_req->start_offset + 1);
 
             // ack msg has 3 params: write_len, mem_blk_id, file_block_id
             int write_and_free_len = sizeof(int) + sizeof(int) + sizeof(int);
@@ -3709,7 +3711,7 @@ static void  jay_complete_nread(conn *c)
                     else if(open_arg.arg_num == 3)
                         new_ost_file->real_fd = open(open_arg.path, open_arg.flags, open_arg.modes);
                     assert(new_ost_file->real_fd > 0);
-                    new_ost_file->size = lseek(new_ost_file->real_fd, 0, SEEK_END);
+					new_ost_file->size = lseek(new_ost_file->real_fd, 0, SEEK_END);
                     insert_ost_file(cfd, new_ost_file);
 
                     ost_file = new_ost_file;
@@ -3803,7 +3805,7 @@ static void  jay_complete_nread(conn *c)
                     else if(open_arg.arg_num == 3)
                         new_ost_file->real_fd = open(open_arg.path, open_arg.flags, open_arg.modes);
                     assert(new_ost_file->real_fd > 0);
-                    new_ost_file->size = lseek(new_ost_file->real_fd, 0, SEEK_END);
+					new_ost_file->size = lseek(new_ost_file->real_fd, 0, SEEK_END);
                     insert_ost_file(cfd, new_ost_file);
 
                     ost_file = new_ost_file;
@@ -5057,18 +5059,18 @@ static void init_ost_file(Ost_File * file)
 
 static void update_ost_file_size(Ost_File * file, size_t offset, size_t count)
 {
-    if(offset + count <= file->size)
-    {
-        return;
-    }
-    else if(offset >= file->size)
-    {
-        file->size = offset + count;
-    }
-    else
-    {
-        file->size += offset + count - file->size;
-    }
+	if(offset + count <= file->size) 
+	{
+		return;
+	}
+	else if(offset >= file->size)
+	{
+		file->size = offset + count;
+	}
+	else
+	{
+		file->size += offset + count - file->size;
+	}
 }
 
 
@@ -5230,27 +5232,27 @@ static void query_block_metadata(int mfd, int start_block_index, int num_block, 
                     fprintf(stderr, "QUERY MDS:\t file_block[%d] is at ost[%d]\n", query_index, ost_id);
             }
             else
-            {
+            {                
                 buf[query_index - start_block_index] = -1;
                 if(SERVER_DEBUG_LEVEL)
                     fprintf(stderr, "QUERY MDS:\t file_block[%d] is NOT cached\n", query_index);
             }
         }
+		
+		size_t current_pos_in_successive_data_range = successive_info->accumulated_data_size - size;
 
-        size_t current_pos_in_successive_data_range = successive_info->accumulated_data_size - size;
-
-        for(query_index = start_block_index; query_index <= end_block_index; query_index++)
-        {
-            if(buf[query_index - start_block_index] == -1)
-            {
-                int server_offset = (current_pos_in_successive_data_range + (query_index - start_block_index) * G_BLOCK_SIZE_IN_BYTES)
-                                    / config_param.LASIOD_LARGE_IO_SIZE;
-                server_offset = server_offset % config_param.LASIOD_SCATTER_NUM;
-                buf[query_index - start_block_index] = (query_server_id + server_offset) % G_SERVER_NUM;
-                radix_tree_insert(&file->block_tree, query_index, (void *)OST_ID_TO_RDX_ID(buf[query_index - start_block_index]));	// convert int to void* just for convenience
-            }
-        }
-
+		for(query_index = start_block_index; query_index <= end_block_index; query_index++)
+		{
+			if(buf[query_index - start_block_index] == -1)
+			{
+				int server_offset = (current_pos_in_successive_data_range + (query_index - start_block_index) * G_BLOCK_SIZE_IN_BYTES)
+									/ config_param.LASIOD_LARGE_IO_SIZE;
+				server_offset = server_offset % config_param.LASIOD_SCATTER_NUM;
+				buf[query_index - start_block_index] = (query_server_id + server_offset) % G_SERVER_NUM;
+				radix_tree_insert(&file->block_tree, query_index, (void *)OST_ID_TO_RDX_ID(buf[query_index - start_block_index]));	// convert int to void* just for convenience
+   			}
+		}
+		
         pthread_mutex_unlock(&file->block_tree_mutex);
     }
     else
@@ -5370,8 +5372,8 @@ static void server_name_array_init()
         printf("%s\t", G_SERVER_NAME_ARRAY[i].name);
     printf("\n");
 
-    if(config_param.LASIOD_SCATTER_NUM < 0) config_param.LASIOD_SCATTER_NUM = G_SERVER_NUM;
-    assert(config_param.LASIOD_SCATTER_NUM <= G_SERVER_NUM);
+	if(config_param.LASIOD_SCATTER_NUM < 0) config_param.LASIOD_SCATTER_NUM = G_SERVER_NUM;
+	assert(config_param.LASIOD_SCATTER_NUM <= G_SERVER_NUM);
 
     fclose(fd);
 }
@@ -5383,10 +5385,10 @@ static void server_name_array_finalize()
 
 static void my_server_id_init()
 {
-    // 0,1,2,3,4,5,6,7,8,9,10
-    // ION: 0,4,8...
-    // CN:   ,1,2,3,  ,5,6,7, ,9,10...
-
+	// 0,1,2,3,4,5,6,7,8,9,10
+	// ION: 0,4,8...
+	// CN:   ,1,2,3,  ,5,6,7, ,9,10...
+	
     server_name_array_init();
 
     char server_name[10];
@@ -5429,12 +5431,12 @@ static void cache_device_init()
     // tmpfs file device path
     if(config_param.cache_device_tmpfs == 1)
     {
-        strcpy(DEVICE_PATH, config_param.tmpfs_path);
+		strcpy(DEVICE_PATH, config_param.tmpfs_path);
     }
-    else
-    {
-        strcpy(DEVICE_PATH, config_param.ssd_path);
-    }
+	else
+	{
+		strcpy(DEVICE_PATH, config_param.ssd_path);
+	}
 
     // TODO: compare the performance of fopen()
     device_fd = open(DEVICE_PATH, O_RDWR);
@@ -5469,78 +5471,78 @@ static void cache_device_init()
     if(SERVER_DEBUG_LEVEL)
         fprintf(stderr, "DEVICE_SIZE: %d GB\n", device_size / 1024 / 1024 / 1024);
 
-
+	
 }
 
 static void cache_device_finalize()
 {
     free(device_space);
     close(device_fd);
-
+	
 }
 
-static void device_semaphore_p()
-{
-    struct sembuf sem_b;
-    sem_b.sem_num = 0;
-    sem_b.sem_op = -1;//P()
-    sem_b.sem_flg = SEM_UNDO;
-    if(semop(DEVICE_SEM_ID, &sem_b, 1) == -1)
-    {
-        fprintf(stderr, "device_semaphore_p failed\n");
-        exit(1);
-    }
-}
+static void device_semaphore_p()  
+{   
+    struct sembuf sem_b;  
+    sem_b.sem_num = 0;  
+    sem_b.sem_op = -1;//P()  
+    sem_b.sem_flg = SEM_UNDO;  
+    if(semop(DEVICE_SEM_ID, &sem_b, 1) == -1)  
+    {  
+        fprintf(stderr, "device_semaphore_p failed\n");  
+		exit(1);
+    }  
+} 
 
-static void device_semaphore_v()
-{
-    struct sembuf sem_b;
-    sem_b.sem_num = 0;
-    sem_b.sem_op = 1;//V()
-    sem_b.sem_flg = SEM_UNDO;
-    if(semop(DEVICE_SEM_ID, &sem_b, 1) == -1)
-    {
-        fprintf(stderr, "device_semaphore_v failed\n");
-        exit(1);
-    }
-}
+static void device_semaphore_v()  
+{    
+    struct sembuf sem_b;  
+    sem_b.sem_num = 0;  
+    sem_b.sem_op = 1;//V()  
+    sem_b.sem_flg = SEM_UNDO;  
+    if(semop(DEVICE_SEM_ID, &sem_b, 1) == -1)  
+    {  
+        fprintf(stderr, "device_semaphore_v failed\n");  
+		exit(1);
+    }  
+}  
 
 static void keep_tmpfs_busy_by_writing(char* buf, unsigned long offset, int size, double num_times)
-{
-    if(config_param.cache_device_tmpfs == 1 && config_param.simulate_ssd == 1)
-    {
-        if(size < 5000) num_times *= 0.5;
-        int count = (int)num_times;
-        double digit_times = num_times - count;
-        if(size * digit_times != 0)
-        {
-            if(lseek(device_fd, offset, SEEK_SET) < 0)
-            {
-                perror("lseek error in keep_tmpfs_busy_by_writing()");
-                return;
-            }
-            int bytes = write(device_fd, buf, size * digit_times);
-            if(bytes <= 0)
-            {
-                perror("write error in keep_tmpfs_busy_by_writing()\n");
-            }
-        }
+{		
+	if(config_param.cache_device_tmpfs == 1 && config_param.simulate_ssd == 1)
+	{
+		if(size < 5000) num_times *= 0.5;
+		int count = (int)num_times;
+		double digit_times = num_times - count;
+		if(size * digit_times != 0)
+		{
+			if(lseek(device_fd, offset, SEEK_SET) < 0)
+    		{
+        		perror("lseek error in keep_tmpfs_busy_by_writing()");
+       			return;
+    		}
+			int bytes = write(device_fd, buf, size * digit_times);
+			if(bytes <= 0)
+			{
+				perror("write error in keep_tmpfs_busy_by_writing()\n");
+    		}
+		}
 
-        int i;
-        for(i=0; i<count; i++)
-        {
-            if(lseek(device_fd, offset, SEEK_SET) < 0)
-            {
-                perror("lseek error in keep_tmpfs_busy_by_writing()");
-                return;
-            }
-            int bytes = write(device_fd, buf, size);
-            if(bytes <= 0)
-            {
-                perror("write error in keep_tmpfs_busy_by_writing()\n");
-            }
-        }
-    }
+		int i;
+		for(i=0; i<count; i++)
+		{
+			if(lseek(device_fd, offset, SEEK_SET) < 0)
+    		{
+        		perror("lseek error in keep_tmpfs_busy_by_writing()");
+       			return;
+    		}
+			int bytes = write(device_fd, buf, size);
+			if(bytes <= 0)
+			{
+				perror("write error in keep_tmpfs_busy_by_writing()\n");
+    		}
+		}
+	}
 }
 
 
@@ -5552,18 +5554,18 @@ static void write_partial_block_in_device(int device_block_id, int start_offset,
         perror("lseek error in write_partial_block_in_device()");
         return;
     };
-    device_semaphore_p();
+	device_semaphore_p();
     int bytes = write(device_fd, buf, end_offset - start_offset + 1);
     if(bytes <= 0)
     {
         perror("write error in write_partial_block_in_device()\n");
     }
     assert(bytes == end_offset - start_offset + 1);
-
-    if(config_param.cache_device_tmpfs == 1 && config_param.simulate_ssd == 1)
-        keep_tmpfs_busy_by_writing(buf, ((unsigned long)device_block_id) * G_BLOCK_SIZE_IN_BYTES + start_offset,
-                                   (end_offset - start_offset + 1), config_param.simulate_write_latency);
-    device_semaphore_v();
+	
+	if(config_param.cache_device_tmpfs == 1 && config_param.simulate_ssd == 1)
+		keep_tmpfs_busy_by_writing(buf, ((unsigned long)device_block_id) * G_BLOCK_SIZE_IN_BYTES + start_offset, 
+			(end_offset - start_offset + 1), config_param.simulate_write_latency);
+	device_semaphore_v();
 }
 
 static void read_partial_block_from_device(int device_block_id, int start_offset, int end_offset, char* buf)
@@ -5573,18 +5575,18 @@ static void read_partial_block_from_device(int device_block_id, int start_offset
         perror("lseek error in read_partial_block_from_device()");
         return;
     }
-    device_semaphore_p();
+	device_semaphore_p();
     int bytes = read(device_fd, buf, end_offset - start_offset + 1);
     if(bytes <= 0)
     {
         perror("read error in read_partial_block_from_device()\n");
     }
     assert(bytes == end_offset - start_offset + 1);
-
-    if(config_param.cache_device_tmpfs == 1 && config_param.simulate_ssd == 1)
-        keep_tmpfs_busy_by_writing(buf, ((unsigned long)device_block_id) * G_BLOCK_SIZE_IN_BYTES + start_offset,
-                                   (end_offset - start_offset + 1), config_param.simulate_read_latency);
-    device_semaphore_v();
+	
+	if(config_param.cache_device_tmpfs == 1 && config_param.simulate_ssd == 1)
+		keep_tmpfs_busy_by_writing(buf, ((unsigned long)device_block_id) * G_BLOCK_SIZE_IN_BYTES + start_offset, 
+			(end_offset - start_offset + 1), config_param.simulate_read_latency);
+	device_semaphore_v();
 }
 
 static void write_block_in_device(int device_block_id, char* buf)
@@ -5594,18 +5596,18 @@ static void write_block_in_device(int device_block_id, char* buf)
         perror("lseek error in write_block_in_device()");
         return;
     }
-    device_semaphore_p();
+	device_semaphore_p();
     int bytes = write(device_fd, buf, G_BLOCK_SIZE_IN_BYTES);
     if(bytes <= 0)
     {
         perror("write error in write_block_in_device()\n");
     }
     assert(bytes == G_BLOCK_SIZE_IN_BYTES);
-
-    if(config_param.cache_device_tmpfs == 1 && config_param.simulate_ssd == 1)
-        keep_tmpfs_busy_by_writing(buf, ((unsigned long)device_block_id) * G_BLOCK_SIZE_IN_BYTES,
-                                   G_BLOCK_SIZE_IN_BYTES, config_param.simulate_write_latency);
-    device_semaphore_v();
+	
+	if(config_param.cache_device_tmpfs == 1 && config_param.simulate_ssd == 1)
+		keep_tmpfs_busy_by_writing(buf, ((unsigned long)device_block_id) * G_BLOCK_SIZE_IN_BYTES, 
+			G_BLOCK_SIZE_IN_BYTES, config_param.simulate_write_latency);
+	device_semaphore_v();
 }
 
 static void read_block_from_device(int device_block_id, char* buf)
@@ -5615,18 +5617,18 @@ static void read_block_from_device(int device_block_id, char* buf)
         perror("lseek error in read_block_from_device()");
         return;
     }
-    device_semaphore_p();
+	device_semaphore_p();
     int bytes = read(device_fd, buf, G_BLOCK_SIZE_IN_BYTES);
     if(bytes <= 0)
     {
         perror("read error in read_block_from_device()\n");
     }
     assert(bytes == G_BLOCK_SIZE_IN_BYTES);
-
-    if(config_param.cache_device_tmpfs == 1 && config_param.simulate_ssd == 1)
-        keep_tmpfs_busy_by_writing(buf, ((unsigned long)device_block_id) * G_BLOCK_SIZE_IN_BYTES,
-                                   G_BLOCK_SIZE_IN_BYTES, config_param.simulate_read_latency);
-    device_semaphore_v();
+	
+	if(config_param.cache_device_tmpfs == 1 && config_param.simulate_ssd == 1)
+		keep_tmpfs_busy_by_writing(buf, ((unsigned long)device_block_id) * G_BLOCK_SIZE_IN_BYTES, 
+			G_BLOCK_SIZE_IN_BYTES, config_param.simulate_read_latency);
+	device_semaphore_v();
 }
 
 static void write_blocks_in_device(int start_device_block_id, int num_blocks, char* buf)
@@ -5636,18 +5638,18 @@ static void write_blocks_in_device(int start_device_block_id, int num_blocks, ch
         perror("lseek error in write_blocks_in_device()");
         return;
     }
-    device_semaphore_p();
+	device_semaphore_p();
     int bytes = write(device_fd, buf, G_BLOCK_SIZE_IN_BYTES * num_blocks);
     if(bytes <= 0)
     {
         perror("write error in write_blocks_in_device()\n");
     }
     assert(bytes == G_BLOCK_SIZE_IN_BYTES * num_blocks);
-
-    if(config_param.cache_device_tmpfs == 1 && config_param.simulate_ssd == 1)
-        keep_tmpfs_busy_by_writing(buf, ((unsigned long)start_device_block_id) * G_BLOCK_SIZE_IN_BYTES,
-                                   G_BLOCK_SIZE_IN_BYTES * num_blocks, config_param.simulate_write_latency);
-    device_semaphore_v();
+	
+	if(config_param.cache_device_tmpfs == 1 && config_param.simulate_ssd == 1)
+		keep_tmpfs_busy_by_writing(buf, ((unsigned long)start_device_block_id) * G_BLOCK_SIZE_IN_BYTES, 
+			G_BLOCK_SIZE_IN_BYTES * num_blocks, config_param.simulate_write_latency);
+	device_semaphore_v();
 }
 
 static void read_blocks_from_device(int start_device_block_id, int num_blocks, char* buf)
@@ -5657,14 +5659,14 @@ static void read_blocks_from_device(int start_device_block_id, int num_blocks, c
         perror("lseek error in read_blocks_from_device()");
         return;
     }
-    device_semaphore_p();
+	device_semaphore_p();
     int bytes = read(device_fd, buf, G_BLOCK_SIZE_IN_BYTES * num_blocks);
     assert(bytes == G_BLOCK_SIZE_IN_BYTES * num_blocks);
-
-    if(config_param.cache_device_tmpfs == 1 && config_param.simulate_ssd == 1)
-        keep_tmpfs_busy_by_writing(buf, ((unsigned long)start_device_block_id) * G_BLOCK_SIZE_IN_BYTES,
-                                   G_BLOCK_SIZE_IN_BYTES * num_blocks, config_param.simulate_read_latency);
-    device_semaphore_v();
+	
+	if(config_param.cache_device_tmpfs == 1 && config_param.simulate_ssd == 1)
+		keep_tmpfs_busy_by_writing(buf, ((unsigned long)start_device_block_id) * G_BLOCK_SIZE_IN_BYTES, 
+			G_BLOCK_SIZE_IN_BYTES * num_blocks, config_param.simulate_read_latency);
+	device_semaphore_v();
 }
 
 static void put_blocks_in_device(int *device_block_array, int num_device_block, char* buf)
@@ -6305,23 +6307,23 @@ static void read_ost_block(Ost_File *file, char* buf, block_data_req *blk_req)		
         read_partial_block_from_device(device_block_id, blk_req->start_offset, blk_req->end_offset, buf + blk_req->start_offset);
     }
 
-    // once the request is from my own CN, then cache the ssd metadata.
-    // because any request coming here didn't find the ssd metadata locally
-    if(config_param.metadata_caching == 1 && blk_req->requesting_srv_id == MY_SERVER_ID)
-    {
-        MetadataCachingEntry *get_entry = get_entry_metadata_cache(file->path, blk_req->file_block_id);
-        if(get_entry != NULL)
-        {
-            get_entry->device_block_id = device_block_id;
-        }
-        else
-        {
-            MetadataCachingEntry entry;
-            entry.server_id = blk_req->requesting_srv_id;
-            entry.device_block_id = device_block_id;
-            put_entry_metadata_cache(file->path, blk_req->file_block_id, &entry);
-        }
-    }
+	// once the request is from my own CN, then cache the ssd metadata.
+	// because any request coming here didn't find the ssd metadata locally 
+	if(config_param.metadata_caching == 1 && blk_req->requesting_srv_id == MY_SERVER_ID)
+	{
+		MetadataCachingEntry *get_entry = get_entry_metadata_cache(file->path, blk_req->file_block_id);			
+		if(get_entry != NULL)
+		{
+			get_entry->device_block_id = device_block_id;
+		}
+		else
+		{
+			MetadataCachingEntry entry;
+			entry.server_id = blk_req->requesting_srv_id;
+			entry.device_block_id = device_block_id;
+			put_entry_metadata_cache(file->path, blk_req->file_block_id, &entry);
+		}
+	}
 }
 
 static void write_ost_block(Ost_File *file, char* buf, block_data_req *blk_req)		//buf must be of block size
@@ -6354,20 +6356,20 @@ static void write_ost_block(Ost_File *file, char* buf, block_data_req *blk_req)	
             // the read bytes may be smaller than what you want
             // ex. when write to a empty file
             uint64_t cur_offset = blk_req->file_block_id * G_BLOCK_SIZE_IN_BYTES + blk_req->start_offset;
-            uint64_t cur_count = blk_req->end_offset - blk_req->start_offset + 1;
+			uint64_t cur_count = blk_req->end_offset - blk_req->start_offset + 1;
             if(cur_offset >= file->size)
             {
-                // no need to read in, just write
-                allocate_device_space(&device_block_id, 1);
-                write_partial_block_in_device(device_block_id, blk_req->start_offset, blk_req->end_offset, buf + blk_req->start_offset);
+				// no need to read in, just write
+				allocate_device_space(&device_block_id, 1);
+				write_partial_block_in_device(device_block_id, blk_req->start_offset, blk_req->end_offset, buf + blk_req->start_offset);
             }
-            else
-            {
-                get_blocks_from_fs(file->real_fd, blk_req->file_block_id, 1, tmp_block_buf);
-                memcpy(tmp_block_buf + blk_req->start_offset, buf + blk_req->start_offset, blk_req->end_offset - blk_req->start_offset + 1);
-                allocate_device_space(&device_block_id, 1);
-                put_blocks_in_device(&device_block_id, 1, tmp_block_buf);
-            }
+			else
+			{
+            	get_blocks_from_fs(file->real_fd, blk_req->file_block_id, 1, tmp_block_buf);
+            	memcpy(tmp_block_buf + blk_req->start_offset, buf + blk_req->start_offset, blk_req->end_offset - blk_req->start_offset + 1);
+            	allocate_device_space(&device_block_id, 1);
+            	put_blocks_in_device(&device_block_id, 1, tmp_block_buf);
+			}
         }
         pthread_mutex_lock(&file->cache_tree_mutex);
         radix_tree_insert(&file->cache_tree, blk_req->file_block_id, BLK_ID_TO_RDX_ID(device_block_id));
@@ -6379,130 +6381,130 @@ static void write_ost_block(Ost_File *file, char* buf, block_data_req *blk_req)	
         write_partial_block_in_device(device_block_id, blk_req->start_offset, blk_req->end_offset, buf + blk_req->start_offset);
     }
 
-    // once the request is from my own CN, then cache the ssd metadata.
-    // because any request coming here didn't find the ssd metadata locally
-    if(config_param.metadata_caching == 1 && blk_req->requesting_srv_id == MY_SERVER_ID)
-    {
-        MetadataCachingEntry *get_entry = get_entry_metadata_cache(file->path, blk_req->file_block_id);
-        if(get_entry != NULL)
-        {
-            get_entry->device_block_id = device_block_id;
-        }
-        else
-        {
-            MetadataCachingEntry entry;
-            entry.server_id = blk_req->requesting_srv_id;
-            entry.device_block_id = device_block_id;
-            put_entry_metadata_cache(file->path, blk_req->file_block_id, &entry);
-        }
-    }
+	// once the request is from my own CN, then cache the ssd metadata.
+	// because any request coming here didn't find the ssd metadata locally 
+	if(config_param.metadata_caching == 1 && blk_req->requesting_srv_id == MY_SERVER_ID)
+	{
+		MetadataCachingEntry *get_entry = get_entry_metadata_cache(file->path, blk_req->file_block_id);			
+		if(get_entry != NULL)
+		{
+			get_entry->device_block_id = device_block_id;
+		}
+		else
+		{
+			MetadataCachingEntry entry;
+			entry.server_id = blk_req->requesting_srv_id;
+			entry.device_block_id = device_block_id;
+			put_entry_metadata_cache(file->path, blk_req->file_block_id, &entry);
+		}
+	}
 }
 
 // to support the first read in of uncached local data can be fast
 static void prepare_for_first_cached_in_data(Ost_File *ost_file, int *metadata_array, int num_block, int start_block_id,
-        long offset, size_t size, int is_read)
+															long offset, size_t size, int is_read)
 {
-    int i;
-    for(i=0; i<num_block; i++)
-    {
-        if(metadata_array[i] != MY_SERVER_ID) continue;
+	int i;
+	for(i=0; i<num_block; i++)
+	{
+		if(metadata_array[i] != MY_SERVER_ID) continue;
+		
+		int file_block_id = start_block_id + i;
+		void *rdx_id = NULL;
+    	int device_block_id;
+    	pthread_mutex_lock(&ost_file->cache_tree_mutex);
+    	rdx_id = radix_tree_lookup(&ost_file->cache_tree, file_block_id);
+		if(rdx_id != NULL)
+		{
+        	device_block_id = RDX_ID_TO_BLK_ID(rdx_id);		// convert void* to int just for convenience
+    	}
+    	else
+    	{
+        	// not cached
+        	device_block_id = -1;
+    	}
+    	pthread_mutex_unlock(&ost_file->cache_tree_mutex);
 
-        int file_block_id = start_block_id + i;
-        void *rdx_id = NULL;
-        int device_block_id;
-        pthread_mutex_lock(&ost_file->cache_tree_mutex);
-        rdx_id = radix_tree_lookup(&ost_file->cache_tree, file_block_id);
-        if(rdx_id != NULL)
-        {
-            device_block_id = RDX_ID_TO_BLK_ID(rdx_id);		// convert void* to int just for convenience
-        }
-        else
-        {
-            // not cached
-            device_block_id = -1;
-        }
-        pthread_mutex_unlock(&ost_file->cache_tree_mutex);
+		if(is_read)
+		{
+			// cache miss
+    		if(device_block_id == -1)
+    		{
+        		get_blocks_from_fs(ost_file->real_fd, file_block_id, 1, tmp_block_buf);
+        		allocate_device_space(&device_block_id, 1);
+        		put_blocks_in_device(&device_block_id, 1, tmp_block_buf);
 
-        if(is_read)
-        {
-            // cache miss
-            if(device_block_id == -1)
-            {
-                get_blocks_from_fs(ost_file->real_fd, file_block_id, 1, tmp_block_buf);
-                allocate_device_space(&device_block_id, 1);
-                put_blocks_in_device(&device_block_id, 1, tmp_block_buf);
+        		pthread_mutex_lock(&ost_file->cache_tree_mutex);
+        		radix_tree_insert(&ost_file->cache_tree, file_block_id, BLK_ID_TO_RDX_ID(device_block_id));
+        		pthread_mutex_unlock(&ost_file->cache_tree_mutex);
+    		}
+    		// cache hit
+    		else
+    		{
+				// let the client read
+    		}
+		}
+		// write
+		else
+		{
+			// cache miss
+    		if(device_block_id == -1)
+    		{
+				int blk_start_offset = i == 0 ?
+                           	offset % G_BLOCK_SIZE_IN_BYTES : 0;
+        		int blk_end_offset = i == num_block - 1?
+                         	(offset + size - 1) % G_BLOCK_SIZE_IN_BYTES : G_BLOCK_SIZE_IN_BYTES - 1;
+        		if(blk_start_offset == 0 && blk_end_offset == G_BLOCK_SIZE_IN_BYTES - 1)
+        		{
+					// do nothing, let client write in the whole block
+            		allocate_device_space(&device_block_id, 1);
+        		}
+        		else
+        		{				
+            		uint64_t cur_offset = file_block_id * G_BLOCK_SIZE_IN_BYTES + blk_start_offset;
+            		if(cur_offset >= ost_file->size)
+            		{
+            			allocate_device_space(&device_block_id, 1);						
+            		}
+					else
+					{
+            			get_blocks_from_fs(ost_file->real_fd, file_block_id, 1, tmp_block_buf);
+            			allocate_device_space(&device_block_id, 1);
+            			put_blocks_in_device(&device_block_id, 1, tmp_block_buf);
+					}
+        		}
+        		pthread_mutex_lock(&ost_file->cache_tree_mutex);
+       	 		radix_tree_insert(&ost_file->cache_tree, file_block_id, BLK_ID_TO_RDX_ID(device_block_id));
+        		pthread_mutex_unlock(&ost_file->cache_tree_mutex);
+    		}
+    		// cache hit
+    		else
+    		{
+				// do nothing, let client do what he want
+        	}
+			update_ost_file_size(ost_file, offset, size);
+		}
 
-                pthread_mutex_lock(&ost_file->cache_tree_mutex);
-                radix_tree_insert(&ost_file->cache_tree, file_block_id, BLK_ID_TO_RDX_ID(device_block_id));
-                pthread_mutex_unlock(&ost_file->cache_tree_mutex);
-            }
-            // cache hit
-            else
-            {
-                // let the client read
-            }
-        }
-        // write
-        else
-        {
-            // cache miss
-            if(device_block_id == -1)
-            {
-                int blk_start_offset = i == 0 ?
-                                       offset % G_BLOCK_SIZE_IN_BYTES : 0;
-                int blk_end_offset = i == num_block - 1?
-                                     (offset + size - 1) % G_BLOCK_SIZE_IN_BYTES : G_BLOCK_SIZE_IN_BYTES - 1;
-                if(blk_start_offset == 0 && blk_end_offset == G_BLOCK_SIZE_IN_BYTES - 1)
-                {
-                    // do nothing, let client write in the whole block
-                    allocate_device_space(&device_block_id, 1);
-                }
-                else
-                {
-                    uint64_t cur_offset = file_block_id * G_BLOCK_SIZE_IN_BYTES + blk_start_offset;
-                    if(cur_offset >= ost_file->size)
-                    {
-                        allocate_device_space(&device_block_id, 1);
-                    }
-                    else
-                    {
-                        get_blocks_from_fs(ost_file->real_fd, file_block_id, 1, tmp_block_buf);
-                        allocate_device_space(&device_block_id, 1);
-                        put_blocks_in_device(&device_block_id, 1, tmp_block_buf);
-                    }
-                }
-                pthread_mutex_lock(&ost_file->cache_tree_mutex);
-                radix_tree_insert(&ost_file->cache_tree, file_block_id, BLK_ID_TO_RDX_ID(device_block_id));
-                pthread_mutex_unlock(&ost_file->cache_tree_mutex);
-            }
-            // cache hit
-            else
-            {
-                // do nothing, let client do what he want
-            }
-            update_ost_file_size(ost_file, offset, size);
-        }
+		// cache the ssd metadata
+		if(1 || config_param.metadata_caching == 1)
+		{
+			assert(device_block_id != -1);
+			MetadataCachingEntry *get_entry = get_entry_metadata_cache(ost_file->path, file_block_id);			
+			if(get_entry != NULL)
+			{
+				get_entry->device_block_id = device_block_id;
+			}
+			else
+			{
+				MetadataCachingEntry entry;
+				entry.server_id = MY_SERVER_ID;
+				entry.device_block_id = device_block_id;
+				put_entry_metadata_cache(ost_file->path, file_block_id, &entry);
+			}
+		}
+	}
 
-        // cache the ssd metadata
-        if(1 || config_param.metadata_caching == 1)
-        {
-            assert(device_block_id != -1);
-            MetadataCachingEntry *get_entry = get_entry_metadata_cache(ost_file->path, file_block_id);
-            if(get_entry != NULL)
-            {
-                get_entry->device_block_id = device_block_id;
-            }
-            else
-            {
-                MetadataCachingEntry entry;
-                entry.server_id = MY_SERVER_ID;
-                entry.device_block_id = device_block_id;
-                put_entry_metadata_cache(ost_file->path, file_block_id, &entry);
-            }
-        }
-    }
-
-
+    
 }
 
 
@@ -6707,9 +6709,9 @@ int main(int argc, char **argv)
 {
     // JAY CODE
     read_config_file(config_param);
-    DEBUG = config_param.server_debug_level;
-    // JAY CODE END
-
+	DEBUG = config_param.server_debug_level;
+	// JAY CODE END
+	
     int retval = EXIT_SUCCESS;
     /* initialize main thread libevent instance */
 
