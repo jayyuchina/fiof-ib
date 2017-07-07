@@ -2799,6 +2799,7 @@ static void complete_nread(conn *c)
 
 }
 
+// need delete
 static void pull_rdma_data(rdma_mem_block *mem_blk, block_data_req *blk_req, rdma_data_req *rdma_req)
 {
     glex_ret_t glex_ret;
