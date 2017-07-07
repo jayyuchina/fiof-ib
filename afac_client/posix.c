@@ -325,6 +325,9 @@ static int main_init()
         rdma_init();
         //metadata_caching_init();
         establish_sock_connection_with_all_ion();
+
+		// ION
+		establish_ib_connection_with_all_ion();
         //ssd_device_init();
 
         if(CLIENT_DEBUG_LEVEL >= 2) fprintf(stderr, "=============================\n");
@@ -1870,7 +1873,7 @@ static void establish_ib_connection_with_all_ion()
         }
 
 		// shake hands
-		ib_change_qp_state_rts(G_SERVER_CONNS[srv_id].ib_ctx->qp, G_SERVER_CONNS[srv_id].ib_ctx->rmt_ib_conn);
+		ib_change_qp_state_rts(G_SERVER_CONNS[srv_id].ib_ctx->qp, &(G_SERVER_CONNS[srv_id].ib_ctx->rmt_ib_conn));
 
 		if(CLIENT_DEBUG_LEVEL >= 2) fprintf(stderr, "Established IB connection with ion[%d]\n", srv_id);
     }

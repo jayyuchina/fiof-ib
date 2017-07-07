@@ -2835,27 +2835,6 @@ static void pull_rdma_data(rdma_mem_block *mem_blk, block_data_req *blk_req, rdm
 
 // IB
 
-static IB_Context** ib_ctx_array;
-void init_ib_ctx_array()
-{
-    if ((ib_ctx_array = calloc(G_SERVER_NUM, sizeof(IB_Context*))) == NULL)
-    {
-        fprintf(stderr, "Failed to allocate ib_ctx_array structures\n");
-        exit(1);
-    }
-}
-
-void put_ib_ctx(int srv_id, IB_Context * ib_ctx)
-{
-	assert(ib_ctx_array[srv_id] == NULL);
-	ib_ctx_array[srv_id] = ib_ctx;
-}
-
-IB_Context * get_ib_ctx(int srv_id)
-{
-	return ib_ctx_array[srv_id];
-}
-
 static void handle_create_ib_conn(protocol_binary_request_header *req, conn* c)
 {
     assert(req->request.para_num == 2);
@@ -2866,25 +2845,20 @@ static void handle_create_ib_conn(protocol_binary_request_header *req, conn* c)
     memcpy(&requesting_srv_id, (char*)req + buf_offset, req->request.para1_len);
     buf_offset += req->request.para1_len;
 	
-
-	assert(get_ib_ctx(requesting_srv_id) == NULL);
-
-	// TODO: register right memory
-	IB_Context *loc_ib_ctx = create_ib_qp(tmpbuf, 1024);
-
-	IB_Connection * recv_ib_conn = &loc_ib_ctx->rmt_ib_conn;
-    memcpy(&recv_ib_conn, (char*)req + buf_offset, req->request.para2_len);
+	IB_Connection clt_ib_conn;
+    memcpy(&clt_ib_conn, (char*)req + buf_offset, req->request.para2_len);
     buf_offset += req->request.para2_len;
+
+	IB_Connection* srv_ib_conn = init_ib_with_client(requesting_srv_id, &clt_ib_conn);
 	
 	int write_and_free_len = sizeof(IB_Connection);
 	c->write_and_free = calloc(1, write_and_free_len);
-	memcpy(c->write_and_free, &loc_ib_ctx->loc_ib_conn, sizeof(IB_Connection));
+	memcpy(c->write_and_free, srv_ib_conn, sizeof(IB_Connection));
 	write_bin_response(c, c->write_and_free, 0, 1, write_and_free_len,
 								   0, 1, 1,
 								   write_and_free_len, write_and_free_len,
 								   sizeof(IB_Connection), 0, 0, 0, 0, 0, 0);
 	
-	put_ib_ctx(requesting_srv_id, loc_ib_ctx);
 }
 
 
@@ -6765,6 +6739,9 @@ int main(int argc, char **argv)
     my_server_id_init();
 
     metadata_caching_init();
+
+	//ION
+	server_ib_rdma_init(G_SERVER_NUM, config_param.num_buf_per_qp, config_param.size_per_buf);
     // JAY CODE END
 
     bool tcp_specified = false;

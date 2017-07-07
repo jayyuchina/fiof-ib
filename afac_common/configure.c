@@ -21,6 +21,14 @@ void digest_config_pair(Config_Param &config_param, struct confread_pair *pair)
 		// srv_id / ion_moudulus  * ion_moudulus is the ION of the srv
         config_param.ion_modulus = atoi(value);	
     }
+    else if(strcmp(key, "num_buf_per_qp") == 0)
+    {
+        config_param.num_buf_per_qp = atoi(value);	
+    }
+    else if(strcmp(key, "size_per_buf") == 0)
+    {
+        config_param.size_per_buf = atoi(value);	
+    }
     else if(strcmp(key, "ion_with_hash") == 0)
     {
 		if(strcmp(value, "on") == 0)

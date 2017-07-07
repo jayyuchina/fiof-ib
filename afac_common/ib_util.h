@@ -54,11 +54,14 @@ typedef struct
 	pthread_mutex_t 		ib_lock;
 }IB_Context;
 
+
 typedef struct
 {
-    uint32_t id;
-    IB_Context* ctx;
-} IB_Queuepair;
+	int 	pair_srv_id;
+	void*	rmt_mem_addr;
+	void*	rmt_mem_off;
+	int64_t size;
+} ib_rdma_data_req;
 
 
 #endif

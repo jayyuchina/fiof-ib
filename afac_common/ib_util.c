@@ -220,4 +220,72 @@ void destory_ib_qp(IB_Context * ctx)
     return;
 }
 
+void re_register_rdma_buf(IB_Context *ctx, void * mem_region, int64_t mem_size)
+{
+	TEST_Z(ctx->mr = ibv_reg_mr(ctx->pd, mem_region, mem_size,
+                                 IBV_ACCESS_REMOTE_WRITE | IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_READ | IBV_ACCESS_REMOTE_ATOMIC),
+           "Could not allocate mr, ibv_reg_mr. Do you have root access?");
+}
+
+int64_t rdma_read(IB_Context* ctx, void* loc_mem, int64_t loc_off,
+						void* rmt_mem, int64_t rmt_off, int64_t size)
+{
+	
+	//fprintf(stderr, "################# rb_block_receive_ib START, rmt_ip: %ld rmt_addr: %#016Lx\n", rmt_ip, rmt_mem_addr);
+
+    pthread_mutex_lock(&(ctx->ib_lock));
+
+	struct ib_connection *rmt_ib_conn = &ctx->rmt_ib_conn;
+
+    ctx->sge_list.addr      = loc_mem + loc_off;
+    ctx->sge_list.length    = size;
+    ctx->sge_list.lkey      = ctx->mr->lkey;
+
+    ctx->wr.wr.rdma.remote_addr = rmt_mem + rmt_off;
+    ctx->wr.wr.rdma.rkey        = rmt_ib_conn->rkey;
+    ctx->wr.wr_id       = RDMA_WRID;
+    ctx->wr.sg_list     = &ctx->sge_list;
+    ctx->wr.num_sge     = 1;
+    ctx->wr.opcode      = IBV_WR_RDMA_READ;
+    ctx->wr.send_flags  = IBV_SEND_SIGNALED;
+    ctx->wr.next        = NULL;
+
+    struct ibv_send_wr *bad_wr;
+
+	
+	
+    //fprintf(stderr, "REAL TRANSFER IB CONN: LID %#04x, QPN %#06x, PSN %#06x RKey %#08x VAddr %#016Lx\n",
+           //rmt_ib_conn->lid, rmt_ib_conn->qpn, rmt_ib_conn->psn, rmt_ib_conn->rkey, rmt_ib_conn->vaddr);
+
+    TEST_NZ(ibv_post_send(ctx->qp,&ctx->wr,&bad_wr),
+            "ibv_post_send failed. This is bad mkay");
+
+    // Conrols if message was competely sent. But fails if client destroys his context to early. This would have to
+    // be timed by the server telling the client that the rdma_write has been completed.
+
+	int64_t ret = size;
+	
+    int ne;
+    struct ibv_wc wc;
+
+    do {
+        ne = ibv_poll_cq(ctx->scq,1,&wc);
+    } while(ne == 0);
+
+    if (ne < 0) {
+        fprintf(stderr, "rdma_read: poll CQ failed %d\n", ne);
+		ret = 0;
+    }
+
+    if (wc.status != IBV_WC_SUCCESS) {
+            fprintf(stderr, "rdma_read: Failed status %d\n", wc.status);
+			ret = 0;
+        }
+	
+    pthread_mutex_unlock(&(ctx->ib_lock))
+	//fprintf(stderr, "################# rb_block_receive_ib END\n");
+
+	return ret;
+}
+
 

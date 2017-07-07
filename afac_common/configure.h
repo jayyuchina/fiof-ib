@@ -11,7 +11,10 @@ typedef struct
 	int server_debug_level;
 	int client_debug_level;
 
+	// ION
 	int ion_modulus;
+	int num_buf_per_qp;
+	int size_per_buf;
 	
 	int metadata_hash;
 	
