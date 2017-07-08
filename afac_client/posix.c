@@ -168,7 +168,7 @@ typedef struct
 {
     int file_block_id;
     int ost_id;
-    int need_access_remotely;
+    //int need_access_remotely;		// all data are retrieved from ion, so delete it
 } scatter_block_info;
 
 typedef struct
@@ -907,7 +907,7 @@ static void inform_my_own_ost_to_prepare_data(fd_map* my_fd_map, int cfd, size_t
 }
 
 static int retrieve_block_metadata(fd_map* my_fd_map, int cfd, size_t curr_offset, size_t count,
-                                   int* block_metadata, MetadataLocalCachedInfo *meta_cache_info, int is_read)
+                                   int* block_metadata, int is_read)
 {
     int start_block_index = curr_offset >> G_BLOCK_SIZE_SHIFT;
     int end_block_index = (curr_offset + count - 1) >> G_BLOCK_SIZE_SHIFT;
@@ -1317,21 +1317,23 @@ static int check_ost_id_is_unique(scatter_block_info* this_round_block_array, in
 }
 
 static void scatter_block_metadata(scatter_block_info* scatterred_block_metadata, int *block_metadata, int num_block_metadata,
-                                   int start_block_index, MetadataLocalCachedInfo *meta_cache_info)
+                                   int start_block_index)
 {
+	// Let's try do not scatter block metadata
+
+	int blk_id;
+	for(blk_id=0; blk_id<num_block_metadata; blk_id++)
+	{
+        scatterred_block_metadata[blk_id].ost_id = block_metadata[blk_id];
+        scatterred_block_metadata[blk_id].file_block_id = start_block_index + blk_id;
+	}
+	return;
+
+
+	// ORIGINAL SCATTER CODE
+
+	/*
     int i;
-
-    /*	for(i=0; i<num_block_metadata; i++)
-        {
-            scatterred_block_metadata[i].file_block_id = start_block_index + i;
-            scatterred_block_metadata[i].ost_id = block_metadata[i];
-        }
-
-        // test if not
-
-        return scatterred_block_metadata;
-    */
-
     if(num_block_metadata == 1)
     {
         scatterred_block_metadata[0].ost_id = block_metadata[0];
@@ -1406,9 +1408,11 @@ static void scatter_block_metadata(scatter_block_info* scatterred_block_metadata
 
 
     return scatterred_block_metadata;
+
+	*/
 }
 
-static void send_read_request_to_ost(int cfd, scatter_block_info* scatter_blk, int start_offset, int end_offset)
+static void send_read_request_to_ost(int cfd, scatter_block_info* scatter_blk, int64_t start_offset, int64_t end_offset)
 {
     int dest_ost = scatter_blk->ost_id == -1 ? MY_SERVER_ID : scatter_blk->ost_id;
 
@@ -1433,7 +1437,7 @@ static void send_read_request_to_ost(int cfd, scatter_block_info* scatter_blk, i
 
 }
 
-static void send_write_request_to_ost(int cfd, scatter_block_info* scatter_blk, int offset_in_buf, int start_offset, int end_offset)
+static void send_write_request_to_ost(int cfd, scatter_block_info* scatter_blk, int64_t offset_in_buf, int64_t start_offset, int64_t end_offset)
 {
     int dest_ost = scatter_blk->ost_id == -1 ? MY_SERVER_ID : scatter_blk->ost_id;
 
@@ -1884,6 +1888,62 @@ static void establish_ib_connection_with_all_ion()
 
 
 
+void assign_usr_buf_to_ion_qp(scatter_block_info *scatter_blocks, int num_block_metadata, void* buf, uint64_t curr_offset, size_t count)
+{	
+    int start_block_index = curr_offset >> G_BLOCK_SIZE_SHIFT;
+    int end_block_index = (curr_offset + count - 1) >> G_BLOCK_SIZE_SHIFT;
+    int first_block_start_offset = curr_offset % G_BLOCK_SIZE_IN_BYTES;
+    int last_block_end_offset = (curr_offset + count - 1) % G_BLOCK_SIZE_IN_BYTES;
+    int num_block_metadata = end_block_index - start_block_index + 1;
+
+	// assume that the data are divided to multiple ion as whole segments,
+	// means that the same ion_id are adjacent
+	int i;
+	int same_start_pos = 0, same_end_pos;
+	int same_ost_id;
+	uint64_t buf_off, buf_len;
+	while(1)
+	{
+		same_ost_id = scatter_blocks[same_start_pos].ost_id;
+		for(i=same_start_pos; i<num_block_metadata; i++)
+		{
+			if(scatter_blocks[i].ost_id == same_ost_id )
+				continue;
+			else
+				break;
+		}
+
+		// either i exceeds the array, or blcok i has a new ost_id
+		// so same_start_pos ~ i-1 have the same ost_id
+		same_end_pos = i-1;
+
+		// calculate out the memory size of these blocks having a same ost_id
+		buf_off = same_start_pos == 0 ?
+				0 : G_BLOCK_SIZE_IN_BYTES - first_block_start_offset + G_BLOCK_SIZE_IN_BYTES * (same_start_pos - 0 - 1);
+		buf_len = (same_end_pos - same_start_pos + 1) << G_BLOCK_SIZE_SHIFT;
+		if(same_start_pos == 0)
+		{
+			buf_len -= first_block_start_offset;
+		}
+		if(same_end_pos == num_block_metadata-1)
+		{
+			buf_len -= G_BLOCK_SIZE_IN_BYTES - last_block_end_offset - 1;
+		}
+
+		// re-register the memory to corresponding qp
+		re_register_ib_rdma_buf(G_SERVER_CONNS[same_ost_id].ib_ctx, buf + buf_off, buf_len);
+
+		// prepare a new round of check
+		same_start_pos = same_end_pos + 1;
+		if(same_start_pos >= num_block_metadata) break;		
+	}
+	
+}
+
+
+
+
+
 
 /********************************************************************/
 /**********************   DARSHAN       ********************************/
@@ -2264,7 +2324,7 @@ ssize_t hack_read(int fd, void *buf, size_t count)
     size_t ret = 0;
     int sfd;
     int connected;
-    long curr_offset;
+    uint64_t curr_offset;
     conn_cli* c;
     int k = 0;
     char *s;
@@ -2612,7 +2672,7 @@ ssize_t hack_write(int fd, const void *buf, size_t count)
     int sfd;
     int connected;
     int process_pid;
-    long curr_offset;
+    uint64_t curr_offset;
     conn_cli* c;
     int path_look = 0;
     char *s;
@@ -2644,21 +2704,12 @@ ssize_t hack_write(int fd, const void *buf, size_t count)
     int last_block_end_offset = (curr_offset + count - 1) % G_BLOCK_SIZE_IN_BYTES;
     int num_block_metadata = end_block_index - start_block_index + 1;
 
-    int block_metadata[num_block_metadata];	// calloc inside retrieve_block_metadat(), need to free when finished
-    MetadataLocalCachedInfo meta_cache_info[num_block_metadata];
-    memset(meta_cache_info, 0, sizeof(MetadataLocalCachedInfo) * num_block_metadata);
-    int bytes_block_metadata = retrieve_block_metadata(my_fd_map, cfd, curr_offset, count, block_metadata, meta_cache_info, 0);
-
-    int num_blocks_read_locally = 0;
-
-
+    int block_metadata[num_block_metadata];
+    int bytes_block_metadata = retrieve_block_metadata(my_fd_map, cfd, curr_offset, count, block_metadata, 0);
 
     // change 1,1,1,2,2,2 to 1,2,1,2,1,2, this can be more efficient
     scatter_block_info scatter_blocks[num_block_metadata];
-    scatter_block_metadata(scatter_blocks, block_metadata, num_block_metadata, start_block_index, meta_cache_info);
-
-
-    int num_blocks_access_remotely = num_block_metadata - num_blocks_read_locally;
+    scatter_block_metadata(scatter_blocks, block_metadata, num_block_metadata, start_block_index);
 
     int num_block_reqs_of_ost[G_SERVER_NUM];
     int num_req_osts = 0;
@@ -2676,8 +2727,8 @@ ssize_t hack_write(int fd, const void *buf, size_t count)
         }
     }
 
+	assign_usr_buf_to_ion_qp(&scatter_blocks, num_block_metadata, buf, curr_offset, count);
 
-    register_rdma_buf(buf, count);
 
     int num_send_block_reqs = 0;
     int last_send_scatter_block_id = -1;
@@ -2688,13 +2739,11 @@ ssize_t hack_write(int fd, const void *buf, size_t count)
     //for(cur_blk=0; cur_blk<num_first_batch_reqs; cur_blk++)
     for(cur_blk=0; cur_blk<num_block_metadata; cur_blk++)
     {
-        if(scatter_blocks[cur_blk].need_access_remotely == 0) continue;
-
-        int start_offset = scatter_blocks[cur_blk].file_block_id == start_block_index ?
+        int64_t start_offset = scatter_blocks[cur_blk].file_block_id == start_block_index ?
                            curr_offset % G_BLOCK_SIZE_IN_BYTES : 0;
-        int end_offset = scatter_blocks[cur_blk].file_block_id == end_block_index ?
+        int64_t end_offset = scatter_blocks[cur_blk].file_block_id == end_block_index ?
                          (curr_offset + count - 1) % G_BLOCK_SIZE_IN_BYTES : G_BLOCK_SIZE_IN_BYTES - 1;
-        int offset_in_buf = scatter_blocks[cur_blk].file_block_id == start_block_index ?
+        int64_t offset_in_buf = scatter_blocks[cur_blk].file_block_id == start_block_index ?
                             0 : G_BLOCK_SIZE_IN_BYTES - first_block_start_offset + G_BLOCK_SIZE_IN_BYTES * (scatter_blocks[cur_blk].file_block_id - start_block_index - 1);
         send_write_request_to_ost(cfd, &scatter_blocks[cur_blk], offset_in_buf, start_offset, end_offset);
 

@@ -36,9 +36,9 @@ typedef struct
 {
 	int requesting_srv_id;
 	int cfd;
-	int file_block_id;
-	int start_offset;
-	int end_offset;
+	int64_t file_block_id;
+	int64_t start_offset;
+	int64_t end_offset;
 } block_data_req;
 
 typedef struct

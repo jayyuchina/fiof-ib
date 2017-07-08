@@ -220,8 +220,9 @@ void destory_ib_qp(IB_Context * ctx)
     return;
 }
 
-void re_register_rdma_buf(IB_Context *ctx, void * mem_region, int64_t mem_size)
+void re_register_ib_rdma_buf(IB_Context *ctx, void * mem_region, int64_t mem_size)
 {
+	assert(ctx != NULL);
 	TEST_Z(ctx->mr = ibv_reg_mr(ctx->pd, mem_region, mem_size,
                                  IBV_ACCESS_REMOTE_WRITE | IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_READ | IBV_ACCESS_REMOTE_ATOMIC),
            "Could not allocate mr, ibv_reg_mr. Do you have root access?");
